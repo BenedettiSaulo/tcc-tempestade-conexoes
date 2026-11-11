@@ -1,0 +1,11 @@
+# configurações geradas/locais
+vm02-proxies/.env
+vm02-proxies/pgbouncer/pgbouncer.ini
+vm02-proxies/proxysql/proxysql.cnf
+vm03-jmeter-master/servers.env
+# resultados das execuções
+reports/
+reports_*/
+*.jtl
+*.log
+jmeter.log
