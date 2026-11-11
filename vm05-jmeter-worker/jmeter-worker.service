@@ -1,0 +1,19 @@
+# Opcional, mas recomendado: assim o worker sobrevive a quedas de SSH e a
+# reboots da VM. Ajuste <SEU_USUARIO> e <VM04_IP>, depois:
+#   sudo cp jmeter-worker.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now jmeter-worker
+
+[Unit]
+Description=JMeter distributed testing worker (jmeter-server)
+After=network.target
+
+[Service]
+Type=simple
+User=<SEU_USUARIO>
+ExecStart=/opt/jmeter/bin/jmeter-server -Djava.rmi.server.hostname=<VM04_IP> -Dserver_port=1099 -Dserver.rmi.localport=50000 -Dserver.rmi.ssl.disable=true
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

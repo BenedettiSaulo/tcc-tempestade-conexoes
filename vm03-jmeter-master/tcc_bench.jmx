@@ -1,0 +1,291 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jmeterTestPlan version="1.2" properties="5.0" jmeter="5.6.3">
+  <hashTree>
+    <TestPlan guiclass="TestPlanGui" testclass="TestPlan" testname="Test Plan">
+      <boolProp name="TestPlan.tearDown_on_shutdown">true</boolProp>
+      <elementProp name="TestPlan.user_defined_variables" elementType="Arguments" guiclass="ArgumentsPanel" testclass="Arguments" testname="User Defined Variables">
+        <collectionProp name="Arguments.arguments"/>
+      </elementProp>
+      <boolProp name="TestPlan.functional_mode">false</boolProp>
+      <boolProp name="TestPlan.serialize_threadgroups">false</boolProp>
+    </TestPlan>
+    <hashTree>
+      <Arguments guiclass="ArgumentsPanel" testclass="Arguments" testname="User Defined Variables">
+        <collectionProp name="Arguments.arguments">
+          <elementProp name="TARGET_SCENARIO" elementType="Argument">
+            <stringProp name="Argument.name">TARGET_SCENARIO</stringProp>
+            <stringProp name="Argument.value">${__P(TARGET_SCENARIO,1)}</stringProp>
+            <stringProp name="Argument.desc">1=Baseline, 2=PgBouncer/HAProxy, 3=ProxySQL, 4=OJP. Sobrescreva sem editar o arquivo: -JTARGET_SCENARIO=3</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="TARGET_RATE" elementType="Argument">
+            <stringProp name="Argument.name">TARGET_RATE</stringProp>
+            <stringProp name="Argument.value">${__P(TARGET_RATE,200)}</stringProp>
+            <stringProp name="Argument.desc">Taxa de chegadas/segundo no platô do teste (sobrescreva com -JTARGET_RATE=...)</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="TEST_DURATION" elementType="Argument">
+            <stringProp name="Argument.name">TEST_DURATION</stringProp>
+            <stringProp name="Argument.value">${__P(TEST_DURATION,60)}</stringProp>
+            <stringProp name="Argument.desc">Duração do platô em segundos (sobrescreva com -JTEST_DURATION=...)</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="DB_HOST" elementType="Argument">
+            <stringProp name="Argument.name">DB_HOST</stringProp>
+            <stringProp name="Argument.value">${__P(DB_HOST,localhost)}</stringProp>
+            <stringProp name="Argument.desc">IP/hostname da VM do Postgres (cenários 1 e 4). Sobrescreva com -JDB_HOST=...</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="PROXY_HOST" elementType="Argument">
+            <stringProp name="Argument.name">PROXY_HOST</stringProp>
+            <stringProp name="Argument.value">${__P(PROXY_HOST,localhost)}</stringProp>
+            <stringProp name="Argument.desc">IP/hostname da VM dos proxies (cenários 2, 3 e 4). Sobrescreva com -JPROXY_HOST=...</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+        </collectionProp>
+      </Arguments>
+      <hashTree/>
+      <OpenModelThreadGroup guiclass="OpenModelThreadGroupGui" testclass="OpenModelThreadGroup" testname="Open Model Thread Group">
+        <stringProp name="OpenModelThreadGroup.schedule">rate(1/sec) random_arrivals(5 sec) rate(${TARGET_RATE}/sec) random_arrivals(${TEST_DURATION} sec) rate(1/sec) random_arrivals(5 sec)</stringProp>
+        <stringProp name="ThreadGroup.on_sample_error">continue</stringProp>
+        <elementProp name="ThreadGroup.main_controller" elementType="OpenModelThreadGroupController"/>
+      </OpenModelThreadGroup>
+      <hashTree>
+        <JSR223Sampler guiclass="TestBeanGUI" testclass="JSR223Sampler" testname="JSR223 Sampler">
+          <stringProp name="scriptLanguage">groovy</stringProp>
+          <stringProp name="parameters"></stringProp>
+          <stringProp name="filename"></stringProp>
+          <stringProp name="cacheKey">true</stringProp>
+          <stringProp name="script">import java.sql.Connection
+import java.sql.DriverManager
+import java.sql.PreparedStatement
+import java.sql.ResultSet
+
+String target = vars.get(&quot;TARGET_SCENARIO&quot;) ?: &quot;1&quot;
+String dbHost = vars.get(&quot;DB_HOST&quot;) ?: &quot;localhost&quot;       // vm01 nos servidores, localhost no seu Windows
+String proxyHost = vars.get(&quot;PROXY_HOST&quot;) ?: &quot;localhost&quot; // vm02 nos servidores, localhost no seu Windows
+
+String url = &quot;&quot;
+String user = &quot;postgres&quot;
+String pass = &quot;postgres&quot;
+String driverClass = &quot;&quot;
+
+switch(target) {
+    case &quot;1&quot;: // Baseline direto
+        url = &quot;jdbc:postgresql://${dbHost}:5432/pagila&quot;
+        driverClass = &quot;org.postgresql.Driver&quot;
+        break
+    case &quot;2&quot;: // PgBouncer, atrás do HAProxy
+        url = &quot;jdbc:postgresql://${proxyHost}:6433/pagila&quot;
+        driverClass = &quot;org.postgresql.Driver&quot;
+        break
+    case &quot;3&quot;: // ProxySQL
+        url = &quot;jdbc:postgresql://${proxyHost}:6033/pagila&quot;
+        driverClass = &quot;org.postgresql.Driver&quot;
+        break
+    case &quot;4&quot;: // Open-J-Proxy
+        url = &quot;jdbc:ojp[${proxyHost}:1059]_postgresql://${dbHost}:5432/pagila&quot;
+        driverClass = &quot;org.openjproxy.jdbc.Driver&quot;
+        break
+    default:
+        url = &quot;jdbc:postgresql://${dbHost}:5432/pagila&quot;
+        driverClass = &quot;org.postgresql.Driver&quot;
+}
+
+java.sql.Driver driverInstance = null
+try {
+    driverInstance = (java.sql.Driver) Class.forName(driverClass).getDeclaredConstructor().newInstance()
+} catch (Exception e) {
+    SampleResult.setSuccessful(false)
+    SampleResult.setResponseCode(&quot;500&quot;)
+    SampleResult.setResponseMessage(&quot;Erro: Driver class não encontrada/instanciável no classpath: &quot; + driverClass + &quot; - &quot; + e.getMessage())
+    return // Interrompe o script se o driver não estiver na pasta /lib
+}
+
+Connection conn = null
+PreparedStatement stmtSelect = null
+PreparedStatement stmtUpdate = null
+ResultSet rs = null
+
+try {
+    // 1. Força abertura e autenticação (direto no driver, não no DriverManager)
+    java.util.Properties props = new java.util.Properties()
+    props.setProperty(&quot;user&quot;, user)
+    props.setProperty(&quot;password&quot;, pass)
+    conn = driverInstance.connect(url, props)
+    if (conn == null) {
+        throw new java.sql.SQLException(&quot;Driver &quot; + driverClass + &quot; retornou null (não reconheceu a URL &quot; + url + &quot;)&quot;)
+    }
+
+    // Desativa autocommit para reter a conexão durante a transação
+    conn.setAutoCommit(false)
+
+    // 2. Consulta mais pesada
+    String[] ratings = [&quot;G&quot;, &quot;PG&quot;, &quot;PG-13&quot;, &quot;R&quot;, &quot;NC-17&quot;]
+    String randomRating = ratings[java.util.concurrent.ThreadLocalRandom.current().nextInt(ratings.length)]
+    int randomOffset = java.util.concurrent.ThreadLocalRandom.current().nextInt(0, 20) // varia dentro do top 20
+
+    String querySelect = &quot;&quot;&quot;
+        SELECT i.inventory_id, f.film_id, f.title, count(r.rental_id) as total_rentals
+        FROM film f
+        JOIN inventory i ON f.film_id = i.film_id
+        JOIN rental r ON i.inventory_id = r.inventory_id
+        WHERE f.rating = ?::mpaa_rating
+        GROUP BY i.inventory_id, f.film_id, f.title
+        ORDER BY total_rentals DESC
+        OFFSET ?
+        LIMIT 1;
+    &quot;&quot;&quot;
+    stmtSelect = conn.prepareStatement(querySelect)
+    stmtSelect.setString(1, randomRating)
+    stmtSelect.setInt(2, randomOffset)
+    rs = stmtSelect.executeQuery()
+
+    int targetInventoryId = 1
+    if (rs.next()) {
+        targetInventoryId = rs.getInt(&quot;inventory_id&quot;)
+    }
+
+    // 3. Atualização transacional
+    String queryUpdate = &quot;UPDATE inventory SET last_update = NOW() WHERE inventory_id = ?;&quot;
+    stmtUpdate = conn.prepareStatement(queryUpdate)
+    stmtUpdate.setInt(1, targetInventoryId)
+    stmtUpdate.executeUpdate()
+
+    // 4. Confirma a transação
+    conn.commit()
+
+    SampleResult.setSuccessful(true)
+    SampleResult.setResponseCodeOK()
+    SampleResult.setResponseMessage(&quot;OK&quot;)
+} catch (Exception e) {
+    if (conn != null) {
+        try { conn.rollback() } catch (Exception ignored) {}
+    }
+    SampleResult.setSuccessful(false)
+    SampleResult.setResponseCode(&quot;500&quot;)
+    String prefixo = (e instanceof java.sql.SQLException &amp;&amp; &quot;40P01&quot;.equals(((java.sql.SQLException) e).getSQLState())) ? &quot;DEADLOCK: &quot; : &quot;Erro: &quot;
+    SampleResult.setResponseMessage(prefixo + e.getMessage())
+} finally {
+    if (rs != null) { try { rs.close() } catch (Exception ignored) {} }
+    if (stmtSelect != null) { try { stmtSelect.close() } catch (Exception ignored) {} }
+    if (stmtUpdate != null) { try { stmtUpdate.close() } catch (Exception ignored) {} }
+    if (conn != null) { try { conn.close() } catch (Exception ignored) {} }
+}</stringProp>
+        </JSR223Sampler>
+        <hashTree/>
+      </hashTree>
+      <ResultCollector guiclass="SummaryReport" testclass="ResultCollector" testname="Summary Report" enabled="true">
+        <boolProp name="ResultCollector.error_logging">false</boolProp>
+        <objProp>
+          <name>saveConfig</name>
+          <value class="SampleSaveConfiguration">
+            <time>true</time>
+            <latency>true</latency>
+            <timestamp>true</timestamp>
+            <success>true</success>
+            <label>true</label>
+            <code>true</code>
+            <message>true</message>
+            <threadName>true</threadName>
+            <dataType>true</dataType>
+            <encoding>false</encoding>
+            <assertions>true</assertions>
+            <subresults>true</subresults>
+            <responseData>false</responseData>
+            <samplerData>false</samplerData>
+            <xml>false</xml>
+            <fieldNames>true</fieldNames>
+            <responseHeaders>false</responseHeaders>
+            <requestHeaders>false</requestHeaders>
+            <responseDataOnError>false</responseDataOnError>
+            <saveAssertionResultsFailureMessage>true</saveAssertionResultsFailureMessage>
+            <assertionsResultsToSave>0</assertionsResultsToSave>
+            <bytes>true</bytes>
+            <sentBytes>true</sentBytes>
+            <url>true</url>
+            <threadCounts>true</threadCounts>
+            <idleTime>true</idleTime>
+            <connectTime>true</connectTime>
+          </value>
+        </objProp>
+        <stringProp name="filename"></stringProp>
+      </ResultCollector>
+      <hashTree/>
+      <ResultCollector guiclass="StatVisualizer" testclass="ResultCollector" testname="Aggregate Report" enabled="true">
+        <boolProp name="ResultCollector.error_logging">false</boolProp>
+        <objProp>
+          <name>saveConfig</name>
+          <value class="SampleSaveConfiguration">
+            <time>true</time>
+            <latency>true</latency>
+            <timestamp>true</timestamp>
+            <success>true</success>
+            <label>true</label>
+            <code>true</code>
+            <message>true</message>
+            <threadName>true</threadName>
+            <dataType>true</dataType>
+            <encoding>false</encoding>
+            <assertions>true</assertions>
+            <subresults>true</subresults>
+            <responseData>false</responseData>
+            <samplerData>false</samplerData>
+            <xml>false</xml>
+            <fieldNames>true</fieldNames>
+            <responseHeaders>false</responseHeaders>
+            <requestHeaders>false</requestHeaders>
+            <responseDataOnError>false</responseDataOnError>
+            <saveAssertionResultsFailureMessage>true</saveAssertionResultsFailureMessage>
+            <assertionsResultsToSave>0</assertionsResultsToSave>
+            <bytes>true</bytes>
+            <sentBytes>true</sentBytes>
+            <url>true</url>
+            <threadCounts>true</threadCounts>
+            <idleTime>true</idleTime>
+            <connectTime>true</connectTime>
+          </value>
+        </objProp>
+        <stringProp name="filename"></stringProp>
+      </ResultCollector>
+      <hashTree/>
+      <ResultCollector guiclass="ViewResultsFullVisualizer" testclass="ResultCollector" testname="View Results Tree" enabled="true">
+        <boolProp name="ResultCollector.error_logging">true</boolProp>
+        <objProp>
+          <name>saveConfig</name>
+          <value class="SampleSaveConfiguration">
+            <time>true</time>
+            <latency>true</latency>
+            <timestamp>true</timestamp>
+            <success>true</success>
+            <label>true</label>
+            <code>true</code>
+            <message>true</message>
+            <threadName>true</threadName>
+            <dataType>true</dataType>
+            <encoding>false</encoding>
+            <assertions>true</assertions>
+            <subresults>true</subresults>
+            <responseData>false</responseData>
+            <samplerData>false</samplerData>
+            <xml>false</xml>
+            <fieldNames>true</fieldNames>
+            <responseHeaders>false</responseHeaders>
+            <requestHeaders>false</requestHeaders>
+            <responseDataOnError>false</responseDataOnError>
+            <saveAssertionResultsFailureMessage>true</saveAssertionResultsFailureMessage>
+            <assertionsResultsToSave>0</assertionsResultsToSave>
+            <bytes>true</bytes>
+            <sentBytes>true</sentBytes>
+            <url>true</url>
+            <threadCounts>true</threadCounts>
+            <idleTime>true</idleTime>
+            <connectTime>true</connectTime>
+          </value>
+        </objProp>
+        <stringProp name="filename"></stringProp>
+      </ResultCollector>
+      <hashTree/>
+    </hashTree>
+  </hashTree>
+</jmeterTestPlan>

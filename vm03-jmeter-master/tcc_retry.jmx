@@ -1,0 +1,218 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jmeterTestPlan version="1.2" properties="5.0" jmeter="5.6.3">
+  <hashTree>
+    <TestPlan guiclass="TestPlanGui" testclass="TestPlan" testname="TCC retry/spike">
+      <boolProp name="TestPlan.tearDown_on_shutdown">true</boolProp>
+      <elementProp name="TestPlan.user_defined_variables" elementType="Arguments" guiclass="ArgumentsPanel" testclass="Arguments" testname="User Defined Variables">
+        <collectionProp name="Arguments.arguments"/>
+      </elementProp>
+    </TestPlan>
+    <hashTree>
+      <Arguments guiclass="ArgumentsPanel" testclass="Arguments" testname="User Defined Variables">
+        <collectionProp name="Arguments.arguments">
+          <elementProp name="TARGET_SCENARIO" elementType="Argument">
+            <stringProp name="Argument.name">TARGET_SCENARIO</stringProp>
+            <stringProp name="Argument.value">${__P(TARGET_SCENARIO,1)}</stringProp>
+            <stringProp name="Argument.desc">1=Baseline, 2=PgBouncer/HAProxy, 3=ProxySQL, 4=OJP</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="PRE_RATE" elementType="Argument">
+            <stringProp name="Argument.name">PRE_RATE</stringProp>
+            <stringProp name="Argument.value">${__P(PRE_RATE,80)}</stringProp>
+            <stringProp name="Argument.desc">req/s POR WORKER antes e depois do pico</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="SPIKE_RATE" elementType="Argument">
+            <stringProp name="Argument.name">SPIKE_RATE</stringProp>
+            <stringProp name="Argument.value">${__P(SPIKE_RATE,200)}</stringProp>
+            <stringProp name="Argument.desc">req/s POR WORKER durante o pico</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="PRE_SEC" elementType="Argument">
+            <stringProp name="Argument.name">PRE_SEC</stringProp>
+            <stringProp name="Argument.value">${__P(PRE_SEC,30)}</stringProp>
+            <stringProp name="Argument.desc">duracao da fase pre-pico (s)</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="SPIKE_SEC" elementType="Argument">
+            <stringProp name="Argument.name">SPIKE_SEC</stringProp>
+            <stringProp name="Argument.value">${__P(SPIKE_SEC,30)}</stringProp>
+            <stringProp name="Argument.desc">duracao do pico (s)</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="POST_SEC" elementType="Argument">
+            <stringProp name="Argument.name">POST_SEC</stringProp>
+            <stringProp name="Argument.value">${__P(POST_SEC,90)}</stringProp>
+            <stringProp name="Argument.desc">duracao da fase de recuperacao (s)</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="RAMP_SEC" elementType="Argument">
+            <stringProp name="Argument.name">RAMP_SEC</stringProp>
+            <stringProp name="Argument.value">${__P(RAMP_SEC,2)}</stringProp>
+            <stringProp name="Argument.desc">transicao entre fases (s)</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="MAX_ATTEMPTS" elementType="Argument">
+            <stringProp name="Argument.name">MAX_ATTEMPTS</stringProp>
+            <stringProp name="Argument.value">${__P(MAX_ATTEMPTS,4)}</stringProp>
+            <stringProp name="Argument.desc">tentativas por requisicao logica (1 + retries)</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="BACKOFF_BASE_MS" elementType="Argument">
+            <stringProp name="Argument.name">BACKOFF_BASE_MS</stringProp>
+            <stringProp name="Argument.value">${__P(BACKOFF_BASE_MS,100)}</stringProp>
+            <stringProp name="Argument.desc">base do backoff exponencial (ms)</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="BACKOFF_CAP_MS" elementType="Argument">
+            <stringProp name="Argument.name">BACKOFF_CAP_MS</stringProp>
+            <stringProp name="Argument.value">${__P(BACKOFF_CAP_MS,2000)}</stringProp>
+            <stringProp name="Argument.desc">teto do backoff (ms)</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="DEADLINE_MS" elementType="Argument">
+            <stringProp name="Argument.name">DEADLINE_MS</stringProp>
+            <stringProp name="Argument.value">${__P(DEADLINE_MS,15000)}</stringProp>
+            <stringProp name="Argument.desc">prazo para iniciar nova tentativa (ms)</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="DB_HOST" elementType="Argument">
+            <stringProp name="Argument.name">DB_HOST</stringProp>
+            <stringProp name="Argument.value">${__P(DB_HOST,localhost)}</stringProp>
+            <stringProp name="Argument.desc">vm01</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="PROXY_HOST" elementType="Argument">
+            <stringProp name="Argument.name">PROXY_HOST</stringProp>
+            <stringProp name="Argument.value">${__P(PROXY_HOST,localhost)}</stringProp>
+            <stringProp name="Argument.desc">vm02</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+        </collectionProp>
+      </Arguments>
+      <hashTree/>
+      <OpenModelThreadGroup guiclass="OpenModelThreadGroupGui" testclass="OpenModelThreadGroup" testname="Open Model Thread Group">
+        <stringProp name="OpenModelThreadGroup.schedule">rate(1/sec) random_arrivals(5 sec) rate(${PRE_RATE}/sec) random_arrivals(${PRE_SEC} sec) rate(${PRE_RATE}/sec) random_arrivals(${RAMP_SEC} sec) rate(${SPIKE_RATE}/sec) random_arrivals(${SPIKE_SEC} sec) rate(${SPIKE_RATE}/sec) random_arrivals(${RAMP_SEC} sec) rate(${PRE_RATE}/sec) random_arrivals(${POST_SEC} sec) rate(${PRE_RATE}/sec) random_arrivals(5 sec) rate(1/sec)</stringProp>
+        <stringProp name="ThreadGroup.on_sample_error">continue</stringProp>
+        <elementProp name="ThreadGroup.main_controller" elementType="OpenModelThreadGroupController"/>
+      </OpenModelThreadGroup>
+      <hashTree>
+        <JSR223Sampler guiclass="TestBeanGUI" testclass="JSR223Sampler" testname="Requisicao logica (com retry)" enabled="true">
+          <stringProp name="scriptLanguage">groovy</stringProp>
+          <stringProp name="parameters"></stringProp>
+          <stringProp name="filename"></stringProp>
+          <stringProp name="cacheKey">true</stringProp>
+          <stringProp name="script">import java.sql.Connection
+import java.sql.PreparedStatement
+import java.sql.ResultSet
+
+// ---- parametros (via -G / User Defined Variables) ----
+String target     = vars.get(&quot;TARGET_SCENARIO&quot;) ?: &quot;1&quot;
+String dbHost     = vars.get(&quot;DB_HOST&quot;) ?: &quot;localhost&quot;
+String proxyHost  = vars.get(&quot;PROXY_HOST&quot;) ?: &quot;localhost&quot;
+int maxAttempts   = (vars.get(&quot;MAX_ATTEMPTS&quot;) ?: &quot;4&quot;) as int        // 1 tentativa + 3 retries
+long baseMs       = (vars.get(&quot;BACKOFF_BASE_MS&quot;) ?: &quot;100&quot;) as long
+long capMs        = (vars.get(&quot;BACKOFF_CAP_MS&quot;) ?: &quot;2000&quot;) as long
+long deadlineMs   = (vars.get(&quot;DEADLINE_MS&quot;) ?: &quot;15000&quot;) as long    // nao inicia nova tentativa depois disso
+
+String url, driverClass
+switch (target) {
+    case &quot;2&quot;: url = &quot;jdbc:postgresql://${proxyHost}:6433/pagila&quot;; driverClass = &quot;org.postgresql.Driver&quot;; break
+    case &quot;3&quot;: url = &quot;jdbc:postgresql://${proxyHost}:6033/pagila&quot;; driverClass = &quot;org.postgresql.Driver&quot;; break
+    case &quot;4&quot;: url = &quot;jdbc:ojp[${proxyHost}:1059]_postgresql://${dbHost}:5432/pagila&quot;; driverClass = &quot;org.openjproxy.jdbc.Driver&quot;; break
+    default:  url = &quot;jdbc:postgresql://${dbHost}:5432/pagila&quot;; driverClass = &quot;org.postgresql.Driver&quot;
+}
+
+java.sql.Driver drv
+try {
+    drv = (java.sql.Driver) Class.forName(driverClass).getDeclaredConstructor().newInstance()
+} catch (Exception e) {
+    SampleResult.setSuccessful(false); SampleResult.setResponseCode(&quot;500&quot;)
+    SampleResult.setResponseMessage(&quot;Erro: driver nao encontrado: &quot; + driverClass)
+    return
+}
+
+String classify(String m) {
+    if (m == null) return &quot;OTHER&quot;
+    String l = m.toLowerCase()
+    if (l.contains(&quot;too many clients&quot;)) return &quot;DB_REFUSED&quot;
+    if (l.contains(&quot;admission timeout&quot;)) return &quot;OJP_ADMISSION&quot;
+    if (l.contains(&quot;acquisition failed&quot;)) return &quot;OJP_ACQUISITION&quot;
+    if (l.contains(&quot;overloaded&quot;)) return &quot;OJP_SHED&quot;
+    if (l.contains(&quot;connection attempt failed&quot;) || l.contains(&quot;timed out&quot;) || l.contains(&quot;timeout&quot;)) return &quot;TIMEOUT&quot;
+    return &quot;OTHER&quot;
+}
+
+// Uma tentativa = nova conexao + SELECT pesado + UPDATE de 1 linha + commit (igual a rodada 8)
+// Retorna &quot;&quot; se OK, ou a mensagem de erro.
+def tryOnce = {
+    Connection conn = null; PreparedStatement s1 = null; PreparedStatement s2 = null; ResultSet rs = null
+    try {
+        java.util.Properties props = new java.util.Properties()
+        props.setProperty(&quot;user&quot;, &quot;postgres&quot;); props.setProperty(&quot;password&quot;, &quot;postgres&quot;)
+        if (target != &quot;4&quot;) {               // so o pgJDBC entende estas propriedades
+            props.setProperty(&quot;connectTimeout&quot;, &quot;10&quot;)   // padrao do pgJDBC, explicito
+            props.setProperty(&quot;socketTimeout&quot;, &quot;30&quot;)    // evita espera infinita na fila
+        }
+        conn = drv.connect(url, props)
+        if (conn == null) throw new java.sql.SQLException(&quot;driver retornou null para &quot; + url)
+        conn.setAutoCommit(false)
+        String[] ratings = [&quot;G&quot;, &quot;PG&quot;, &quot;PG-13&quot;, &quot;R&quot;, &quot;NC-17&quot;]
+        String rating = ratings[java.util.concurrent.ThreadLocalRandom.current().nextInt(ratings.length)]
+        int off = java.util.concurrent.ThreadLocalRandom.current().nextInt(0, 20)
+        s1 = conn.prepareStatement(&quot;&quot;&quot;
+            SELECT i.inventory_id, f.film_id, f.title, count(r.rental_id) as total_rentals
+            FROM film f JOIN inventory i ON f.film_id = i.film_id JOIN rental r ON i.inventory_id = r.inventory_id
+            WHERE f.rating = ?::mpaa_rating GROUP BY i.inventory_id, f.film_id, f.title
+            ORDER BY total_rentals DESC OFFSET ? LIMIT 1;&quot;&quot;&quot;)
+        s1.setString(1, rating); s1.setInt(2, off)
+        rs = s1.executeQuery()
+        int inv = 1
+        if (rs.next()) inv = rs.getInt(&quot;inventory_id&quot;)
+        s2 = conn.prepareStatement(&quot;UPDATE inventory SET last_update = NOW() WHERE inventory_id = ?;&quot;)
+        s2.setInt(1, inv); s2.executeUpdate()
+        conn.commit()
+        return &quot;&quot;
+    } catch (Exception e) {
+        if (conn != null) { try { conn.rollback() } catch (Exception ig) {} }
+        return (e.getMessage() ?: e.getClass().getName())
+    } finally {
+        if (rs != null) { try { rs.close() } catch (Exception ig) {} }
+        if (s1 != null) { try { s1.close() } catch (Exception ig) {} }
+        if (s2 != null) { try { s2.close() } catch (Exception ig) {} }
+        if (conn != null) { try { conn.close() } catch (Exception ig) {} }
+    }
+}
+
+long t0 = System.nanoTime()
+def log = []                       // &quot;inicio_ms:duracao_ms:CLASSE&quot;
+boolean ok = false
+String lastErr = &quot;&quot;
+for (int a = 1; a &lt;= maxAttempts; a++) {
+    long ta = System.nanoTime()
+    String err = tryOnce()
+    long tb = System.nanoTime()
+    String cls = err.isEmpty() ? &quot;OK&quot; : classify(err)
+    log &lt;&lt; (Math.floorDiv(ta - t0, 1000000L) + &quot;:&quot; + Math.floorDiv(tb - ta, 1000000L) + &quot;:&quot; + cls)
+    if (err.isEmpty()) { ok = true; break }
+    lastErr = err
+    if (a == maxAttempts) break
+    // backoff exponencial com jitter total: U(0, min(cap, base*2^(a-1)))
+    long ceil = Math.min(capMs, baseMs * (1L &lt;&lt; (a - 1)))
+    long delay = java.util.concurrent.ThreadLocalRandom.current().nextLong(0, ceil + 1)
+    long elapsed = Math.floorDiv(System.nanoTime() - t0, 1000000L)
+    if (elapsed + delay &gt; deadlineMs) break
+    Thread.sleep(delay)
+}
+SampleResult.setSuccessful(ok)
+SampleResult.setResponseCode(ok ? &quot;200&quot; : &quot;500&quot;)
+String msg = (ok ? &quot;OK&quot; : &quot;FAIL&quot;) + &quot;;attempts=&quot; + log.size() + &quot;;a=&quot; + log.join(&quot;|&quot;)
+if (!ok) msg += &quot;;last=&quot; + lastErr.replaceAll(&quot;[\\r\\n;,\&quot;]&quot;, &quot; &quot;).take(120)
+SampleResult.setResponseMessage(msg)
+</stringProp>
+        </JSR223Sampler>
+        <hashTree/>
+      </hashTree>
+    </hashTree>
+  </hashTree>
+</jmeterTestPlan>

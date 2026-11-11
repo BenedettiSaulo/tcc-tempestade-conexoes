@@ -1,0 +1,34 @@
+datadir="/var/lib/proxysql"
+
+admin_variables=
+{
+    admin_credentials="admin:admin;radmin:radmin"
+}
+
+mysql_variables=
+{
+    interfaces="0.0.0.0:6034"
+}
+
+pgsql_variables=
+{
+    threads=2
+    max_connections=5000
+    default_schema="pagila"
+    connect_timeout_server=3000
+    interfaces="0.0.0.0:6033"
+    authentication_method=2
+
+    monitor_username="postgres"
+    monitor_password="postgres"
+}
+
+pgsql_servers =
+(
+    { address="${DB_HOST}" , port=${DB_PORT} , hostgroup=10 , max_connections=50 }
+)
+
+pgsql_users =
+(
+    { username = "postgres" , password = "postgres" , default_hostgroup = 10 , active = 1 }
+)
