@@ -48,6 +48,12 @@ DEPLOY.md                passo a passo detalhado da implantação
 
 O passo a passo completo está em [`DEPLOY.md`](DEPLOY.md). Em resumo:
 
+> **Antes de começar:** o upload pela web não preserva a permissão de execução dos scripts. Depois de clonar o repositório, rode na raiz:
+>
+> ```bash
+> chmod +x */*.sh
+> ```
+
 1. **VM01:** `cd vm01-db && docker compose up -d`.
 2. **VM02:** `cp .env.example .env` (com o IP da VM01), `./render-configs.sh` e `docker compose up -d`.
 3. **VM04 e VM05:** copie a pasta do *worker* e `jdbc-drivers/` lado a lado, rode `./install-jmeter.sh` e `./start-worker.sh <IP_DA_VM>`.
